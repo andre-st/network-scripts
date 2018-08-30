@@ -15,16 +15,17 @@ set -e
 # set -x
 
 
-NS="ns_private"
-IF_REAL="wlan0"
-IP_NONUSED_OCTET=200  # 0-255
+readonly NS="ns_private"
+readonly IF_REAL="wlan0"
+readonly IP_NONUSED_OCTET=200  # 0-255
 
+readonly IF_VETH="v${IF_REAL}"
+readonly IF_VETH_NS="${IF_VETH}-ns"
+readonly IP_VETH="10.${IP_NONUSED_OCTET}.1.1"
+readonly IP_VETH_NS="10.${IP_NONUSED_OCTET}.1.2"
+readonly IP_VETH_NET="10.${IP_NONUSED_OCTET}.1.0"
 
-IF_VETH="v${IF_REAL}"
-IF_VETH_NS="${IF_VETH}-ns"
-IP_VETH="10.${IP_NONUSED_OCTET}.1.1"
-IP_VETH_NS="10.${IP_NONUSED_OCTET}.1.2"
-IP_VETH_NET="10.${IP_NONUSED_OCTET}.1.0"
+readonly HTTP_RULE="-o ${IF_REAL} -i ${IF_VETH} -p tcp -m multiport --dport 80,443 -j ACCEPT"
 
 
 netns_stop_services()
@@ -105,8 +106,7 @@ netns_start()
 	iptables -A FORWARD -o ${IF_REAL} -i ${IF_VETH} -p tcp -m multiport --dport 53,10000    -j ACCEPT  # DNS (find hide.me), ?
 	iptables -A FORWARD -o ${IF_REAL} -i ${IF_VETH} -p 50                                   -j ACCEPT  # IPsec ESP protocol (Encapsd Sec Payload)
 	iptables -A FORWARD -o ${IF_REAL} -i ${IF_VETH} -p 51                                   -j ACCEPT  # IPsec AH  protocol (Authn Header)
-	readonly http_rule="-o ${IF_REAL} -i ${IF_VETH} -p tcp -m multiport --dport 80,443      -j ACCEPT"
-	iptables -A FORWARD ${http_rule}   # for OCSP (Online Certificate Status Protocol) 
+	iptables -A FORWARD ${HTTP_RULE}   # for OCSP (Online Certificate Status Protocol) 
 	                                   # disable = /etc/strongswan.d/charon/revocation.conf: load=no
 }
 
@@ -121,7 +121,7 @@ netns_start_services()
 	sleep 5s
 	ip netns exec ${NS} ipsec up hide-nl
 	sleep 5s
-	iptables -D FORWARD ${http_rule}   # HTTP was for OSCP only, no other prg should HTTP outside IPsec
+	iptables -D FORWARD ${HTTP_RULE}   # HTTP was for OSCP only, no other prg should HTTP outside IPsec
 }
 
 
